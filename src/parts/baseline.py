@@ -27,7 +27,7 @@ def run_baseline_tests(
         group_a: str,
         group_b: str,
         categorical_vars: list[str],
-        continuous_var: str | None = None,
+        continuous_vars: list[str],
 ) -> list[BaselineTestResult]:
     results: list[BaselineTestResult] = []
 
@@ -61,24 +61,31 @@ def run_baseline_tests(
             )
         )
 
-    # ----- 2) 连续变量：Welch t-test -----
-    if continuous_var is not None and continuous_var in df.columns:
-        a = df.loc[df[group_col] == group_a, continuous_var].dropna().astype(float)
-        b = df.loc[df[group_col] == group_b, continuous_var].dropna().astype(float)
+    # ----- 2) 多个连续变量：Welch t-test -----
+    for var in continuous_vars:
+        if var not in df.columns:
+            print(f"[Warning] 连续变量 {var} 不存在，跳过")
+            continue
+
+        a = df.loc[df[group_col] == group_a, var].dropna().astype(float)
+        b = df.loc[df[group_col] == group_b, var].dropna().astype(float)
+
+        n1, n2 = a.size, b.size
+        if n1 < 2 or n2 < 2:
+            print(f"[Warning] 连续变量 {var} 样本量不足，跳过 Welch t-test")
+            continue
 
         t_res = ttest_ind(a, b, equal_var=False)
         t_stat = float(t_res.statistic)
         p_val = float(t_res.pvalue)
 
-        # Welch df
-        n1, n2 = a.size, b.size
         s1_sq, s2_sq = a.var(ddof=1), b.var(ddof=1)
         v1, v2 = s1_sq / n1, s2_sq / n2
         df_welch = (v1 + v2) ** 2 / (v1 ** 2 / (n1 - 1) + v2 ** 2 / (n2 - 1))
 
         results.append(
             BaselineTestResult(
-                variable=continuous_var,
+                variable=var,
                 test="Welch t-test",
                 stat_name="t",
                 stat=t_stat,
@@ -100,7 +107,7 @@ def process(
         group_a: str,
         group_b: str,
         categorical_vars: list[str],
-        continuous_var: str | None,
+        continuous_vars: list[str],
         output_excel_path: str | Path,
 ):
     # 1. 读取数据
@@ -115,7 +122,7 @@ def process(
         group_a=group_a,
         group_b=group_b,
         categorical_vars=categorical_vars,
-        continuous_var=continuous_var,
+        continuous_vars=continuous_vars,
     )
 
     baseline_df = pd.DataFrame([asdict(r) for r in baseline_results])
@@ -153,6 +160,6 @@ def main(args: Any):
         group_a=args.group_label_a,
         group_b=args.group_label_b,
         categorical_vars=args.baseline_categorical_vars,
-        continuous_var=args.baseline_continuous_var,
+        continuous_vars=args.baseline_continuous_vars,
         output_excel_path=args.output_excel_path,
     )

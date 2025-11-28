@@ -15,11 +15,15 @@ GROUP_LABEL_B = "手势组"  # TODO: 手势组在 Excel 里的取值
 BASELINE_CATEGORICAL_VARS = [
     "年龄",
     "性别",
-    "VR使用情况",   # 新增
+    "VR使用情况",  # 新增
 ]
 
 # 前测成绩（连续变量 → Welch t）
-BASELINE_CONTINUOUS_VAR = "Pre_test"
+BASELINE_CONTINUOUS_VARS = [
+    "Pre_test",
+    "Post_test",
+    "Gain",
+]
 
 # 正态性检验的 alpha
 NORMALITY_ALPHA = 0.05
@@ -52,7 +56,7 @@ VARIABLE_BLOCKS: Dict[str, List[str]] = {
     "Knowledge": [
         "Pre_test",  # 知识测试前测分数
         "Post_test",  # 知识测试后测分数
-        "Improvement",  # 知识测试总分
+        "Gain",  # 知识测试提升
     ],
     # EEG 指标（示例）
     "EEG": [
@@ -134,9 +138,9 @@ parser.add_argument(
     help="基线特征检验的分类变量列表"
 )
 parser.add_argument(
-    "--baseline_continuous_var",
-    type=str,
-    default=BASELINE_CONTINUOUS_VAR,
+    "--baseline_continuous_vars",
+    type=eval,
+    default=BASELINE_CONTINUOUS_VARS,
     help="基线特征检验的连续变量"
 )
 parser.add_argument(
@@ -145,6 +149,5 @@ parser.add_argument(
     default=True,
     help="是否在输出的描述性统计表中添加空行以区分不同模块"
 )
-
 
 args = parser.parse_args()  # ★★ 关键
