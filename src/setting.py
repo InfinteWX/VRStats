@@ -2,20 +2,20 @@ from typing import Dict, List
 import argparse
 from pathlib import Path
 
-INPUT_EXCEL_PATH = Path(__file__).parent.parent / "data/all.xlsx"  # TODO: 改成你的 Excel 文件路径
-OUTPUT_EXCEL_PATH = Path(__file__).parent.parent / "output/report.xlsx"  # TODO: 输出报告文件名
-SHEET_NAME = 0  # 可以是 sheet 名，也可以是索引 0,1,...
+INPUT_EXCEL_PATH = Path(__file__).parent.parent / "data/Origin.xlsx"  # TODO: 改成你的 Excel 文件路径
+OUTPUT_EXCEL_PATH = Path(__file__).parent.parent / "output/Analysis.xlsx"  # TODO: 输出报告文件名
+SHEET_NAME = "Sheet1"  # 可以是 sheet 名，也可以是索引 0,1,...
 
 # 分组信息
-GROUP_COL = "组别"  # TODO: 分组变量列名，例如 'group'
-GROUP_LABEL_A = "触觉组"  # TODO: 触觉组在 Excel 里的取值
-GROUP_LABEL_B = "手势组"  # TODO: 手势组在 Excel 里的取值
+GROUP_COL = "Group"  # TODO: 分组变量列名，例如 'group'
+GROUP_LABEL_A = "Haptic"  # TODO: 触觉组在 Excel 里的取值
+GROUP_LABEL_B = "Gesture"  # TODO: 手势组在 Excel 里的取值
 
 # ========= 基线特征检验（多个卡方变量） =========
 BASELINE_CATEGORICAL_VARS = [
-    "年龄",
-    "性别",
-    "VR使用情况",  # 新增
+    "Age",
+    "Gender",
+    "VR_Experience",  # 新增
 ]
 
 # 前测成绩（连续变量 → Welch t）
@@ -148,6 +148,12 @@ parser.add_argument(
     type=eval,
     default=True,
     help="是否在输出的描述性统计表中添加空行以区分不同模块"
+)
+parser.add_argument(
+    "--apply_timestamp",
+    type=eval,
+    default=True,
+    help="是否在输出的描述性统计表文件名中添加时间戳"
 )
 
 args = parser.parse_args()  # ★★ 关键

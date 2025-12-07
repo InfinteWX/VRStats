@@ -19,10 +19,29 @@ from src.parts import (
     two_group_tests,
 )
 from src.setting import args
+from datetime import datetime
+from xlsxwriter import Workbook
+
 
 if __name__ == "__main__":
-    baseline.main(args)
-    descriptives.main(args)
-    normality.main(args)
-    two_group_tests.main(args)
+    results = [
+        baseline.process_with_args(args),
+        descriptives.process_with_args(args),
+        normality.process_with_args(args),
+        two_group_tests.process_with_args(args),
+    ]
+
+    # 生成输出文件名
+    if args.apply_timestamp:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        args.output_excel_path = args.output_excel_path.with_name(
+            f"{args.output_excel_path.stem}_{timestamp}{args.output_excel_path.suffix}"
+        )
+
+    # 创建 Excel writer
+    with Workbook(args.output_excel_path) as wb:
+        for df, sheet_name in results:
+            # 写入工作表
+            df.write_excel(wb, worksheet=sheet_name)
+
     print(args)
