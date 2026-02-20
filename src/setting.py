@@ -50,28 +50,31 @@ def setup_publication_style():
     rcParams['figure.dpi'] = 100
 
 
-INPUT_EXCEL_PATH = Path(__file__).parent.parent / "data/Origin.xlsx"  # TODO: 改成你的 Excel 文件路径
+INPUT_EXCEL_PATH = Path(__file__).parent.parent / "data/Preprocessed_data.xlsx"  # TODO: 改成你的 Excel 文件路径
 OUTPUT_EXCEL_PATH = Path(__file__).parent.parent / "output/Analysis.xlsx"  # TODO: 输出报告文件名
 VISUALIZATION_DIR = Path(__file__).parent.parent / "output/visualization"
-SHEET_NAME = "Sheet1"  # 可以是 sheet 名，也可以是索引 0,1,...
+SHEET_NAME = "sheet"  # 可以是 sheet 名，也可以是索引 0,1,...
 
 # 分组信息
-GROUP_COL = "Group"  # TODO: 分组变量列名，例如 'group'
-GROUP_LABEL_A = "Haptic"  # TODO: 触觉组在 Excel 里的取值
-GROUP_LABEL_B = "Gesture"  # TODO: 手势组在 Excel 里的取值
+GROUP_COL = "组别"  # TODO: 分组变量列名，例如 'group'
+GROUP_LABEL_A = "实验组"  # TODO: 触觉组在 Excel 里的取值
+GROUP_LABEL_B = "对照组"  # TODO: 手势组在 Excel 里的取值
 
 # ========= 基线特征检验（多个卡方变量） =========
 BASELINE_CATEGORICAL_VARS = [
-    "Age",
-    "Gender",
-    "VR_Experience",  # 新增
+    "年龄",
+    "性别",
+    "惯用手",
+    "触觉经验",
+    "VR经验",
+    "双经验",
 ]
 
 # 前测成绩（连续变量 → Welch t）
 BASELINE_CONTINUOUS_VARS = [
-    "Pre_test",
-    "Post_test",
-    "Gain",
+    "前测总分",
+    "后测总分",
+    "提升",
 ]
 
 # 正态性检验的 alpha
@@ -80,49 +83,42 @@ NORMALITY_ALPHA = 0.05
 TEST_FUNC_NAME = "mannwhitney"
 
 # 变量模块（方便分别做校正与汇报）
+# 注意：变量名必须与 Excel 文件中的列名完全一致
 VARIABLE_BLOCKS: Dict[str, List[str]] = {
-    # 问卷量表
-    "IEG_Total": [
-        "Intrinsic",  # 认知负荷
-        "Extraneous",  # 学习动机
-        "Germane",  # 沉浸感
-        "IEG_Total"
+    # 认知负荷量表
+    "认知负荷": [
+        "ICL", "GCL", "ECL",
+        "认知负荷总分"
     ],
-    "ARCS_Total": [
-        "Attention",  # 注意
-        "Relevance",  # 相关性
-        "Confidence",  # 信心
-        "Satisfaction",  # 满意度
-        "ARCS_Total"
+    # 沉浸感量表
+    "沉浸感": [
+        "G1", "SP", "INV", "REAL",
+        "沉浸感总分",
     ],
-    "PIR_Total": [
-        "Presence",  # 存在感
-        "Involvement",  # 参与度
-        "Realism",  # 真实感
-        "PIR_Total"
+    # 具身感量表
+    "具身感": [
+        "AC", "CO",
+        "具身感总分",
+    ],
+    # 易用性量表
+    "易用性": [
+        "AIH", "CPH", 
+        "易用性总分",
     ],
     # 知识测试
-    "Knowledge": [
-        "Pre_test",  # 知识测试前测分数
-        "Post_test",  # 知识测试后测分数
-        "Gain",  # 知识测试提升
+    "知识测试": [
+        "前测总分",
+        "后测总分",
+        "提升",
     ],
-    # EEG 指标（示例）
-    "EEG": [
-        "Alpha_Fz",
-        "Alpha_Cz",
-        "Alpha_Pz",
-        "Alpha_Oz",
-        "Beta_Fz",
-        "Beta_Cz",
-        "Beta_Pz",
-        "Beta_Oz",
-        "Theta_Fz",
-        "Theta_Cz",
-        "Theta_Pz",
-        "Theta_Oz",
-        # ... 自行补充
+    # 交互数据
+    "交互数据": [
+        "time", 
+        "empty",
+        "empty_rate",
+        "high_rate",       
     ],
+
 }
 
 parser = argparse.ArgumentParser()  # 不要叫 parse_args

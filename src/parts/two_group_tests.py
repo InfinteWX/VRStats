@@ -99,6 +99,18 @@ def run_two_group_test(
     )
 
 
+def _significance_marker(p: float) -> str:
+    """根据 p 值返回显著性标记符号。"""
+    if p < 0.001:
+        return "***"
+    elif p < 0.01:
+        return "**"
+    elif p < 0.05:
+        return "*"
+    else:
+        return "n.s."
+
+
 def visualize_test_results(
         test_results: list[TestResult],
         block_name: str,
@@ -187,6 +199,151 @@ def visualize_test_results(
     plt.close(fig)
 
 
+def visualize_boxplots(
+        df: pl.DataFrame,
+        group_col: str,
+        test_results: list[TestResult],
+        block_name: str,
+        save_dir: Path,
+) -> None:
+    """
+    为显著性检验的每个变量生成分组箱线图（小提琴图 + 箱线图 + 数据点 + 显著性标注）。
+
+    图表采用学术论文标准风格，包含：
+    - 半透明小提琴图显示数据分布
+    - 箱线图显示四分位数
+    - 散点图显示原始数据点
+    - 括号式显著性标注（*、**、***、n.s.）
+
+    参数:
+        df: 包含原始数据的 Polars DataFrame
+        group_col: 分组变量的列名
+        test_results: 该模块的 TestResult 对象列表
+        block_name: 所属数据模块名称
+        save_dir: 保存图片的目录
+    """
+    if not test_results:
+        return
+
+    # 转为 pandas 便于绘图
+    plot_source = df.to_pandas()
+
+    # 学术配色方案
+    palette = ['#4C72B0', '#DD8452']  # 蓝色/橙色
+
+    for tr in test_results:
+        var = tr.variable
+        if var not in plot_source.columns:
+            continue
+
+        # 使用 BH 校正后的 p 值（如果有），否则使用原始 p 值
+        p_val = tr.p_bh if tr.p_bh is not None else tr.p_value
+
+        groups = [tr.group_a, tr.group_b]
+        group_data = []
+        for g in groups:
+            vals = plot_source.loc[plot_source[group_col] == g, var].dropna().values
+            group_data.append(vals)
+
+        if any(len(d) == 0 for d in group_data):
+            continue
+
+        # ---- 创建图形 ----
+        fig, ax = plt.subplots(figsize=(3.5, 3.2))
+
+        positions = np.array([0, 1])
+
+        # 1) 小提琴图
+        vp = ax.violinplot(
+            group_data,
+            positions=positions,
+            widths=0.65,
+            showmeans=False,
+            showmedians=False,
+            showextrema=False,
+        )
+        for i, body in enumerate(vp['bodies']):
+            body.set_facecolor(palette[i])
+            body.set_alpha(0.35)
+            body.set_edgecolor('black')
+            body.set_linewidth(0.8)
+
+        # 2) 箱线图
+        for i, data in enumerate(group_data):
+            ax.boxplot(
+                [data],
+                positions=[positions[i]],
+                widths=0.18,
+                patch_artist=True,
+                showfliers=False,
+                boxprops=dict(facecolor='white', edgecolor='black', linewidth=1.0),
+                whiskerprops=dict(color='black', linewidth=1.0),
+                capprops=dict(color='black', linewidth=1.0),
+                medianprops=dict(color='#e74c3c', linewidth=1.5),
+            )
+
+        # 3) 数据散点（抖动）
+        for i, data in enumerate(group_data):
+            jitter = np.random.default_rng(42).normal(0, 0.04, size=len(data))
+            ax.scatter(
+                positions[i] + jitter,
+                data,
+                s=18,
+                alpha=0.45,
+                color=palette[i],
+                edgecolors='black',
+                linewidths=0.3,
+                zorder=3,
+            )
+
+        # 4) 显著性标注横线 + 标记
+        sig_text = _significance_marker(p_val)
+        y_max = max(d.max() for d in group_data)
+        y_range = y_max - min(d.min() for d in group_data)
+        bar_y = y_max + y_range * 0.08
+        bar_tip = y_range * 0.02
+
+        ax.plot(
+            [positions[0], positions[0], positions[1], positions[1]],
+            [bar_y - bar_tip, bar_y, bar_y, bar_y - bar_tip],
+            color='black',
+            linewidth=1.0,
+        )
+        ax.text(
+            (positions[0] + positions[1]) / 2,
+            bar_y + y_range * 0.01,
+            sig_text,
+            ha='center',
+            va='bottom',
+            fontsize=10,
+            fontweight='bold',
+        )
+
+        # ---- 轴、标题 ----
+        ax.set_xticks(positions)
+        ax.set_xticklabels(groups)
+        ax.set_xlabel(group_col, fontweight='normal')
+        ax.set_ylabel(var, fontweight='normal')
+        ax.set_title(f'{block_name} / {var}', fontweight='bold', pad=10)
+
+        # 留出显著性标注空间
+        ax.set_ylim(top=bar_y + y_range * 0.18)
+
+        # 网格与边框
+        ax.grid(axis='y', alpha=0.3, linestyle='--', linewidth=0.5)
+        ax.set_axisbelow(True)
+        for spine in ax.spines.values():
+            spine.set_linewidth(1.0)
+            spine.set_color('black')
+
+        # 保存
+        safe_name = var.replace('/', '_').replace('\\', '_')
+        save_path = save_dir / f"{safe_name}_boxplot.png"
+        fig.savefig(save_path, dpi=300, bbox_inches='tight', pad_inches=0.05)
+        print(f"[Info] 箱线图已保存: {save_path}")
+        plt.close(fig)
+
+
 def process(
         input_excel_path: str | Path,
         input_sheet_name: Any,
@@ -271,8 +428,13 @@ def process(
         # 生成可视化（如果指定目录）
         if tests_vis_dir is not None and tests_block:
             try:
+                # 森林图
                 save_path = tests_vis_dir / f"{block_name}_forest.png"
                 visualize_test_results(tests_block, block_name, save_path)
+                # 分组箱线图
+                block_box_dir = tests_vis_dir / block_name
+                block_box_dir.mkdir(parents=True, exist_ok=True)
+                visualize_boxplots(df, group_col, tests_block, block_name, block_box_dir)
             except Exception as e:
                 print(f"[Warning] 生成 {block_name} 可视化时出错: {e}")
 
